@@ -4,9 +4,27 @@ const { v4: uuid } = require('uuid');
 const Form = require('../models/Form');
 const Entries = require('../models/Entries');
 
+const validFieldTypes = ['string', 'boolean', 'number'];
+
 const createForm = async (req = request, res = response) =>
 {
     const { name, fields } = req.body;
+
+    let flag = false;
+
+    fields.forEach(field => 
+    {
+        if(!validFieldTypes.includes(field.type))
+        {
+            flag = true;
+            return res.status(400).json({
+                ok: false,
+                msg: `Invalid field type: - ${field.type} -`
+            })
+        }
+    });
+
+    if(flag) return;
 
     const token = uuid();
     const form = new Form({ name, fields, token });
@@ -27,7 +45,7 @@ const callForm = async(req = request, res  = response) =>
     
     if(!form)
     {
-        res.status(404).json({
+        return res.status(404).json({
             ok: false,
             msg: 'Form not found'
         });
@@ -66,6 +84,26 @@ const callForm = async(req = request, res  = response) =>
             msg: 'Invalid form format, fields do not match with expected format'
         });
     }
+
+    form.fields.forEach(({ name, type}) => 
+    {
+        fields.forEach(field =>
+        {
+            if(field.name === name)
+            {
+                if(typeof field.content !== type)
+                {
+                    flag = true;
+                    return res.status(400).json({
+                        ok: false,
+                        msg: `Invalid field content, type does not match`,
+                    });
+                }
+            }
+        });
+    });
+
+    if(flag) return;
     
     const entry = Entries({ form, fields });
     
